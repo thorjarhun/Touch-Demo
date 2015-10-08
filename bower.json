@@ -1,0 +1,9 @@
+{
+  "name": "touch-demo",
+  "description": "Touch Demo",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "jquery": "~2.1.4"
+  }
+}

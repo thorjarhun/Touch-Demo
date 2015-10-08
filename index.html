@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Touch Demo</title>
+  <style>
+    body {
+      background-color:#000;
+      padding:0;
+      margin:0;
+    }
+    #canvas {
+      display:block;
+    }
+    <!--
+    .marker {
+      position:absolute;
+      background-color:black;
+      width:15px;
+      height:15px;
+      display: none;
+    }
+    -->
+  </style>
+</head>
+<body>
+<!--
+  <h1>Touch Demo</h1>
+-->
+  <canvas id='canvas'></canvas>
+  <script src="/bower_components/jquery/dist/jquery.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    var CANVAS_WIDTH = window.innerWidth;
+    var CANVAS_HEIGHT = window.innerHeight;
+    var MARKER_SIZE = 10;
+
+    var FPS = 30;
+        
+    var canvas;
+    var context;
+
+    init();
+
+    function init() {
+      canvas = document.getElementById('canvas');
+      
+      if (canvas && canvas.getContext) {
+        context = canvas.getContext('2d');
+        canvas.width = CANVAS_WIDTH;
+        canvas.height = CANVAS_HEIGHT;
+        
+        setInterval(loop, 1000 / FPS);
+      }
+    }
+
+    function loop() {
+      // Draw over the whole canvas to create the trail effect
+      context.fillStyle = 'rgba(255, 255, 255, .05)';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      
+      context.lineWidth = MARKER_SIZE;
+      // Draw the lines/dots
+      for (var k in markers) {
+        if (markers.hasOwnProperty(k)) {
+          var marker = markers[k];
+          if (marker.color) {
+            context.beginPath();
+            if (canvas.renderMode === "line") {
+              context.moveTo(marker.x0, marker.y0);
+              context.lineTo(marker.x, marker.y);
+              context.strokeStyle = marker.color;
+              context.stroke();
+              marker.x0 = marker.x;
+              marker.y0 = marker.y;
+            } else {
+              context.arc(marker.x, marker.y, MARKER_SIZE/2, 0, Math.PI*2, true);
+              context.fillStyle = marker.color;
+              context.fill();
+            }
+          }
+        }
+      }
+    }
+    
+    var markers = {};
+    
+    function setColor(data){
+      if (!(data && data.id && data.color)) {
+        console.warn("setColor received malformed data: " + JSON.stringify(data, null, 2));
+      } else if (!markers[data.id]) {
+        console.warn("setColor: missing markers[" + data.id + "]");
+      } else {
+        //markers[data.id].css("background-color",data.color).show();
+        console.log("set user "+data.id+" color "+data.color);
+        markers[data.id].color = data.color;
+      }
+    }
+    
+    function tock(data){
+      if (!data || !data.id) {
+        console.warn("setColor received malformed data: " + JSON.stringify(data, null, 2));
+      } else {
+        if (!markers[data.id]) {
+          markers[data.id] = {};  //$('<div class="marker"></div>').appendTo('body');
+          socket.emit("getColor",data.id);
+        }
+        /*
+        markers[data.id].css({
+          left: (data.x - 2) + "px",
+          top: (data.y - 2) + "px"
+        });
+        */
+        markers[data.id].x = data.x - 2;
+        markers[data.id].y = data.y - 2
+      }
+    };
+    
+    function disconnect(id){
+      console.log("user " + id + " disconnected");
+      if (markers[id]) {
+        //markers[id].remove();
+        delete markers[id];
+      } else if (id === undefined) {
+        markers = {};
+      }
+    }
+    
+    function setRenderMode(mode) {
+      canvas.renderMode = mode;
+    }
+
+    var socket = io.connect("/",{
+      "connect timeout": 3000
+    });
+
+    socket.on("setColor",setColor)
+    socket.on("tock",tock);
+    socket.on("disconnect",disconnect);
+    socket.on("setRenderMode",setRenderMode);
+
+    $(document).bind("mousemove",function(evt){
+      socket.emit("tick",{
+        x: evt.pageX,
+        y: evt.pageY
+      });
+    });
+    
+    $(document).bind("touchmove",function(evt){
+      evt = evt.originalEvent.changedTouches[0];
+      socket.emit("tick",{
+        x: evt.clientX,
+        y: evt.clientY
+      });
+    });
+  </script>
+</body>
+</html>
