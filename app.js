@@ -1,82 +1,83 @@
-var handleHTTP = (function(){
-  var node_static = require("node-static");
-  var static_files = new node_static.Server(__dirname);
-  return function(req,res) {
-    if (req.method == "GET") {
-      console.log("serving " + req.url);
-      //req.addListener("end",function(){
-        static_files.serve(req,res);
-      //});
-      //req.resume();
-    } else {
-      res.writeHead(403);
-      res.end();
-    }
-  };
-})();
+const iife = fn => fn()
 
-var handleIO = (function(){
+const handleHTTP = iife(() => {
+  const node_static = require('node-static')
+  const static_files = new node_static.Server(__dirname)
+  return (req, res) => {
+    if (req.method == 'GET') {
+      console.log('serving ' + req.url)
+      //req.addListener('end', () => {
+        static_files.serve(req,res)
+      //})
+      //req.resume()
+    } else {
+      res.writeHead(403)
+      res.end()
+    }
+  }
+})
+
+const handleIO = iife(() => {
   // socket.emit - just send to socket
   // socket.broadcast.emit - send to every other socket
   // io.sockets.emit - send to all sockets
-  var counter = 0;
-  var users = [];
-  return function(socket){
-    var id = ++counter;
-    var user = users[id] = {};
-    user.color = '#'+("00000"+(Math.random()*0xFFFFFF | 0).toString(16)).slice(-6);
-    console.log("client "+id+" connected");
-    
-    /**/
-    socket.emit("setRenderMode","line");
+  var counter = 0
+  const users = []
+  return socket => {
+    const id = ++counter
+    const user = users[id] = {
+      color: '#'+('00000'+(Math.random()*0xFFFFFF | 0).toString(16)).slice(-6)
+    }
+    console.log('client '+id+' connected')
+
+    /**
+    socket.emit('setRenderMode', 'line')
     /*/
-    socket.emit("setRenderMode","dot");
+    socket.emit('setRenderMode', 'dot')
     /**/
-    
-    function disconnect(){
-      console.log("client "+id+" disconnected");
+
+    const disconnect = () => {
+      console.log('client '+id+' disconnected')
       // emit to everyone but socket
-      socket.broadcast.emit("disconnect", id);
+      socket.broadcast.emit('disconnect', id)
     }
 
-    function tick(data){
-      //console.log(id+":",data);
-      data.id = id;
+    const tick = data => {
+      // console.log(id+':',data)
+      data.id = id
       // emit to everyone
-      io.sockets.emit("tock",data);
-    }
-    
-    function getColor(id){
-      socket.emit("setColor",{
-        id: id,
-        color: users[id].color
-      });
+      io.sockets.emit('tock', data)
     }
 
-    socket.on("disconnect",disconnect);
-    socket.on("tick",tick);
-    socket.on("getColor",getColor);
+    const getColor = id => {
+      socket.emit('setColor', { id, color: users[id].color })
+    }
+
+    socket.on('disconnect', disconnect)
+    socket.on('tick', tick)
+    socket.on('getColor', getColor)
   }
-})();
+})
 
-var port = 8080, host = "0.0.0.0";
-var httpserv = require('http')
-              .createServer(handleHTTP)
-              .listen(port,host);
-var io = require('socket.io')
-        .listen(httpserv)
-        .on("connection",handleIO);
+const port = 8080,
+      host = '0.0.0.0',
+      httpserv = require('http')
+                  .createServer(handleHTTP)
+                  .listen(port, host),
+      io = require('socket.io')
+            .listen(httpserv)
+            .on('connection', handleIO)
 
 // configure socket.io
-io.configure(function(){
-  io.enable("browser client minification"); // send minified client
-  io.enable("browser client etag"); // apply etag caching logic based on version number
-  io.set("log level", 1); // reduce logging
-  io.set("transports", [
-    "websocket",
-    "xhr-polling",
-    "jsonp-polling"
-  ]);
-});
+io.configure(() => {
+  io.enable('browser client minification')  // send minified client
+  io.enable('browser client etag')          // apply etag caching logic based on version number
+  io.set('log level', 1)                    // reduce logging
+  io.set('transports', [
+    'websocket',
+    'xhr-polling',
+    'jsonp-polling'
+  ])
+})
 
-console.log("server listening on http://"+host+":"+port);
+console.log('server listening on http://'+host+':'+port)
